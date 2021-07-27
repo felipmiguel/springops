@@ -1,0 +1,37 @@
+{"properties": [
+  {
+    "name": "springops.azure-spring-cloud.service-name",
+    "type": "java.lang.String",
+    "description": "Azure Spring Cloud service name"
+  },
+  {
+    "name": "springops.azure-spring-cloud.resource-group",
+    "type": "java.lang.String",
+    "description": "Azure Resource Group where the Azure Spring Cloud is located"
+  },
+  {
+    "name": "springops.azure-spring-cloud.subscription-id",
+    "type": "java.lang.String",
+    "description": "Azure subscription id that contains the Azure Spring Cloud service"
+  },
+  {
+    "name": "springops.git.password",
+    "type": "java.lang.String",
+    "description": "A description for 'springops.git.password'"
+  },
+  {
+    "name": "springops.git.user",
+    "type": "java.lang.String",
+    "description": "A description for 'springops.git.user'"
+  },
+  {
+    "name": "springops.git.uri",
+    "type": "java.lang.String",
+    "description": "A description for 'springops.git.uri'"
+  },
+  {
+    "name": "springops.git.baseDirectory",
+    "type": "java.lang.String",
+    "description": "A description for 'springops.git.baseDirectory'"
+  }
+]}
