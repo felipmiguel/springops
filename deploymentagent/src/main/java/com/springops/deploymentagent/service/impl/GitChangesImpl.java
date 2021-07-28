@@ -5,19 +5,16 @@ import java.io.IOException;
 import java.util.List;
 
 import com.springops.deploymentagent.service.ChangesChecker;
-import com.springops.deploymentagent.service.GitRepoFactory;
+import com.springops.deploymentagent.service.ModelParser;
 import com.springops.deploymentagent.service.model.AppDeployment;
 
 import org.eclipse.jgit.api.CloneCommand;
-import org.eclipse.jgit.api.FetchCommand;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.PullCommand;
 import org.eclipse.jgit.api.PullResult;
-import org.eclipse.jgit.api.RebaseResult.Status;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.api.errors.InvalidRemoteException;
 import org.eclipse.jgit.api.errors.TransportException;
-import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.TextProgressMonitor;
 import org.eclipse.jgit.merge.MergeStrategy;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,8 +24,8 @@ import org.springframework.stereotype.Service;
 @Service
 public class GitChangesImpl implements ChangesChecker {
 
-    // @Autowired
-    // private GitRepoFactory gitRepoFactory;
+    @Autowired
+    private ModelParser parser;
 
     @Value("${springops.git.uri}")
     private String gitUri;
@@ -44,13 +41,31 @@ public class GitChangesImpl implements ChangesChecker {
     }
 
     @Override
-    public AppDeployment checkApp(String appName) throws IOException {
+    public List<AppDeployment> checkApp(String appName) throws IOException {
         if (checkChanges(appName)) {
-            File localPath = new File(getAppPath(appName));
-            String[] files = localPath.list();
+            return parser.parseDirectory(getAppPath(appName), AppDeployment.class);
+            // String[] files = localPath.list(new FilenameFilter() {
+            //     @Override
+            //     public boolean accept(File dir, String name) {
+            //         return name.endsWith(".yaml") || name.endsWith(".yml") || name.endsWith(".json");
+            //     }
+            // });
+            // return Arrays.asList(files).stream()
+            //         .map(filePath -> parseFile(filePath))
+            //         .filter(appDeployement -> appDeployement != null)
+            //         .collect(Collectors.toList());
         }
         return null;
     }
+
+    // private AppDeployment parseFile(String filePath) {
+    //     try {
+    //         return mapper.readValue(new File(filePath), AppDeployment.class);
+    //     } catch (IOException e) {
+    //         e.printStackTrace();
+    //         return null;
+    //     }
+    // }
 
     private boolean checkChanges(String appName) {
         String appPath = getAppPath(appName);
@@ -96,8 +111,7 @@ public class GitChangesImpl implements ChangesChecker {
             pull.setProgressMonitor(new TextProgressMonitor());
             PullResult result = pull.call();
 
-            return result.isSuccessful() 
-                && result.getFetchResult().getTrackingRefUpdates().isEmpty() == false;
+            return result.isSuccessful() && result.getFetchResult().getTrackingRefUpdates().isEmpty() == false;
             // return result.isSuccessful()
             // && result.getRebaseResult().getStatus() != Status.UP_TO_DATE;
 

@@ -7,11 +7,15 @@ import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 /** Application deployment representation */
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 @Builder
 public class AppDeployment {
 

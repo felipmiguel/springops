@@ -1,6 +1,12 @@
 package com.springops.deploymentagent.service;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+
 import java.io.IOException;
+import java.util.List;
+
+import com.springops.deploymentagent.service.model.AppDeployment;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -8,7 +14,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
 @ActiveProfiles("test")
-// @ComponentScan(basePackages = { "com.springops.deploymentagent" })
 @SpringBootTest
 public class ChangesCheckerTest {
 
@@ -17,7 +22,9 @@ public class ChangesCheckerTest {
 
     @Test
     void getChanges() throws IOException{
-        checker.checkApp("pepe");
+        List<AppDeployment> deployments = checker.checkApp("pepe");
+        assertNotNull(deployments);
+        assertFalse(deployments.isEmpty());
     }
     
 }

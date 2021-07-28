@@ -1,0 +1,9 @@
+spring:
+    main:
+        web-application-type: NONE
+springops:
+    azure-spring-cloud:
+        drift-checking-frequency: 300000
+    git:
+        frequency: 60000
+        

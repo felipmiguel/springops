@@ -34,8 +34,6 @@ public class ApplicationDeployerImpl implements ApplicationDeployer {
     private SpringService springService;
     static Validator validator = Validation.buildDefaultValidatorFactory().getValidator();
 
-    
-
     private void validateDeploymentModel(AppDeployment expectedDeployment) {
         Set<ConstraintViolation<AppDeployment>> violations = validator.validate(expectedDeployment);
         if (!violations.isEmpty()) {
@@ -125,17 +123,20 @@ public class ApplicationDeployerImpl implements ApplicationDeployer {
         return builder.build();
     }
 
-    
-
     private AppDeployment getCurrentStatus(SpringApp app) {
         SpringAppDeployment deployment = app.getActiveDeployment();
-        String version = deployment.innerModel().properties().source().version();
-        return AppDeployment.builder().appName(app.name())
-                .environmentVariables(deployment.innerModel().properties().deploymentSettings().environmentVariables())
-                .version(version).CPU(deployment.innerModel().properties().deploymentSettings().cpu())
-                .JvmOptions(deployment.innerModel().properties().deploymentSettings().jvmOptions())
-                .MemoryInGb(deployment.innerModel().properties().deploymentSettings().memoryInGB())
-                .instanceCount(app.getActiveDeployment().instances().size()).build();
+        if (deployment != null) {
+            String version = deployment.innerModel().properties().source().version();
+            return AppDeployment.builder().appName(app.name())
+                    .environmentVariables(
+                            deployment.innerModel().properties().deploymentSettings().environmentVariables())
+                    .version(version).CPU(deployment.innerModel().properties().deploymentSettings().cpu())
+                    .JvmOptions(deployment.innerModel().properties().deploymentSettings().jvmOptions())
+                    .MemoryInGb(deployment.innerModel().properties().deploymentSettings().memoryInGB())
+                    .instanceCount(app.getActiveDeployment().instances().size()).build();
+        } else {
+            return AppDeployment.builder().appName(app.name()).build();
+        }
     }
 
     private SpringApp getSpringApp(String appName) {
@@ -181,5 +182,5 @@ public class ApplicationDeployerImpl implements ApplicationDeployer {
     @Override
     public void removeApp(AppDeployment deployment) {
         springService.apps().deleteByName(deployment.getAppName());
-    }    
+    }
 }
