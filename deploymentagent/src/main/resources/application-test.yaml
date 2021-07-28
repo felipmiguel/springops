@@ -4,7 +4,7 @@ springops:
         service-name: asclabfmiguel
         subscription-id: 98bc5d13-2aa1-45cb-bf49-45aa47e220bf
     git:
-        uri: https://github.com/felipmiguel/asc-workshop.git
+        uri: https://github.com/felipmiguel/springopssamples.git
         user: 
         password:  
         baseDirectory: /home/fmiguel/springops

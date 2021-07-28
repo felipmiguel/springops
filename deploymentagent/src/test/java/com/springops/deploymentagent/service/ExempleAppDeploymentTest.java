@@ -18,7 +18,7 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.test.context.ActiveProfiles;
 
 @ActiveProfiles("test")
-@ComponentScan(basePackages = { "com.springops.deploymentagent" })
+// @ComponentScan(basePackages = { "com.springops.deploymentagent" })
 @SpringBootTest
 public class ExempleAppDeploymentTest {
 
