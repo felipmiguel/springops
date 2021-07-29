@@ -15,20 +15,36 @@
 	<properties>
 		<java.version>11</java.version>
 		<hibernate-validator.version>6.0.13.Final</hibernate-validator.version>
-        <javax.el.version>3.0.0</javax.el.version>
-		
+		<javax.el.version>3.0.0</javax.el.version>
+		<jobrunr.version>3.2.1</jobrunr.version>
+
 	</properties>
 	<dependencies>
+		<dependency>
+			<groupId>org.springframework.cloud</groupId>
+			<artifactId>spring-cloud-dependencies</artifactId>
+			<version>2020.0.3</version>
+			<type>pom</type>
+		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter</artifactId>
 		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-actuator</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-web</artifactId>
+		</dependency>
 
-		<!-- <dependency>
-			<groupId>org.springframework.cloud</groupId>
-			<artifactId>spring-cloud-starter-config</artifactId>
-			<version>3.0.4</version>
-		</dependency> -->
+		<!-- JobRunr -->
+		<dependency>
+			<groupId>org.jobrunr</groupId>
+			<artifactId>jobrunr-spring-boot-starter</artifactId>
+			<version>${jobrunr.version}</version>
+		</dependency>
 
 		<dependency>
 			<groupId>com.azure.resourcemanager</groupId>
@@ -86,16 +102,15 @@
 			<version>2.0.1.Final</version>
 		</dependency>
 		<dependency>
-            <groupId>org.hibernate.validator</groupId>
-            <artifactId>hibernate-validator</artifactId>
-            <version>${hibernate-validator.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.glassfish</groupId>
-            <artifactId>javax.el</artifactId>
-            <version>${javax.el.version}</version>
-        </dependency>
-	
+			<groupId>org.hibernate.validator</groupId>
+			<artifactId>hibernate-validator</artifactId>
+			<version>${hibernate-validator.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.glassfish</groupId>
+			<artifactId>javax.el</artifactId>
+			<version>${javax.el.version}</version>
+		</dependency>
 
 
 		<!-- Test -->
@@ -116,7 +131,11 @@
 			<version>5.12.0.202106070339-r</version>
 		</dependency>
 
-		</dependencies>
+
+		
+
+		
+	</dependencies>
 
 	<build>
 		<plugins>
