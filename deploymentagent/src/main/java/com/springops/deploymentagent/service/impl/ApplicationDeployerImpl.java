@@ -24,6 +24,9 @@ import com.springops.deploymentagent.service.model.AppDeployment;
 import com.springops.deploymentagent.service.model.AppDeployment.AppDeploymentBuilder;
 
 import org.apache.commons.compress.utils.IOUtils;
+import org.jobrunr.jobs.annotations.Job;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -33,6 +36,8 @@ public class ApplicationDeployerImpl implements ApplicationDeployer {
     @Autowired
     private SpringService springService;
     static Validator validator = Validation.buildDefaultValidatorFactory().getValidator();
+
+    private Logger logger = LoggerFactory.getLogger(ApplicationDeployerImpl.class);
 
     private void validateDeploymentModel(AppDeployment expectedDeployment) {
         Set<ConstraintViolation<AppDeployment>> violations = validator.validate(expectedDeployment);
@@ -153,16 +158,21 @@ public class ApplicationDeployerImpl implements ApplicationDeployer {
         return app;
     }
 
+    @Job(name = "Deploy Azure Spring Cloud application" )
     @Override
     public void deployApp(AppDeployment expectedDeployment) throws IOException {
 
+        logger.info("Validate " + expectedDeployment.getAppName());
         validateDeploymentModel(expectedDeployment);
 
+        logger.info("Retrieving Spring Cloud App");
         SpringApp app = getSpringApp(expectedDeployment.getAppName());
 
         if (app == null) {
+            logger.info("App doesn't exist. Deploy new.");
             deployNewApp(expectedDeployment);
         } else {
+            logger.info("App already exists. Deploy update.");
             AppDeployment actualDeployment = getCurrentStatus(app);
             AppDeployment toDeploy = getDiffDeployment(actualDeployment, expectedDeployment);
             updateApp(app, toDeploy);

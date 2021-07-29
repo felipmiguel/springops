@@ -17,6 +17,8 @@ import org.eclipse.jgit.api.errors.InvalidRemoteException;
 import org.eclipse.jgit.api.errors.TransportException;
 import org.eclipse.jgit.lib.TextProgressMonitor;
 import org.eclipse.jgit.merge.MergeStrategy;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -35,6 +37,8 @@ public class GitChangesImpl implements ChangesChecker {
     private String gitPassword;
     @Value("${springops.git.baseDirectory}")
     private String baseDirectory;
+
+    private Logger logger = LoggerFactory.getLogger(GitChangesImpl.class);
 
     private String getAppPath(String appName) {
         return baseDirectory + "/" + appName;
@@ -68,10 +72,13 @@ public class GitChangesImpl implements ChangesChecker {
     // }
 
     private boolean checkChanges(String appName) {
+        logger.info("Check GIT changes for app " + appName);
         String appPath = getAppPath(appName);
+        logger.info("Local path: " + appPath);
         File localPath = new File(appPath);
         if (!localPath.exists()) {
             localPath.mkdirs();
+            logger.info("Local path doesn't exist. Clone repo");
             cloneRepo(gitUri, localPath);
             return true;
         } else {
@@ -90,19 +97,17 @@ public class GitChangesImpl implements ChangesChecker {
         try {
             cloneCommand.call();
         } catch (InvalidRemoteException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
+            logger.error("Error clonning repo", e);
         } catch (TransportException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
+            logger.error("Error clonning repo", e);
         } catch (GitAPIException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
+            logger.error("Error clonning repo", e);
         }
     }
 
     /** pull last changes, returns true if there are changes */
     private boolean getPull(File localRepoPath) {
+        logger.info("pulling on " + localRepoPath);
         try (Git git = Git.open(localRepoPath)) {
 
             PullCommand pull = git.pull();
@@ -116,6 +121,7 @@ public class GitChangesImpl implements ChangesChecker {
             // && result.getRebaseResult().getStatus() != Status.UP_TO_DATE;
 
         } catch (Exception e) {
+            logger.error("Error pulling changes", e);
             return false;
         }
     }

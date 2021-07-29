@@ -1,6 +1,3 @@
-spring:
-    main:
-        web-application-type: NONE
 springops:
     azure-spring-cloud:
         resource-group: rg-springcloudlab
@@ -10,4 +7,4 @@ springops:
         uri: https://github.com/felipmiguel/springopssamples.git
         user: 
         password:  
-        baseDirectory: ~/springops
+        baseDirectory: /tmp/springops
