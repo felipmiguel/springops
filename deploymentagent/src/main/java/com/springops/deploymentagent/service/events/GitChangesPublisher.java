@@ -7,14 +7,11 @@ import com.springops.deploymentagent.service.ApplicationDeployer;
 import com.springops.deploymentagent.service.ChangesChecker;
 import com.springops.deploymentagent.service.model.AppDeployment;
 
-import org.jobrunr.scheduling.JobScheduler;
-import org.jobrunr.storage.StorageProviderUtils.Jobs;
 import org.jobrunr.jobs.annotations.Job;
+import org.jobrunr.scheduling.JobScheduler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
 
 @Service

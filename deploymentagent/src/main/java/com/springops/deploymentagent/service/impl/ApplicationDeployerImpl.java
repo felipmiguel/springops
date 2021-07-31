@@ -6,8 +6,16 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URL;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.Map.Entry;
+import java.util.stream.Collector;
+import java.util.stream.Collectors;
 
 import javax.validation.ConstraintViolation;
 import javax.validation.Validation;
@@ -15,12 +23,19 @@ import javax.validation.ValidationException;
 import javax.validation.Validator;
 
 import com.azure.core.management.exception.ManagementException;
+import com.azure.resourcemanager.appplatform.models.DeploymentResourceStatus;
 import com.azure.resourcemanager.appplatform.models.SpringApp;
 import com.azure.resourcemanager.appplatform.models.SpringAppDeployment;
+import com.azure.resourcemanager.appplatform.models.SpringAppDomain;
 import com.azure.resourcemanager.appplatform.models.SpringAppDeployment.Update;
+import com.azure.resourcemanager.appplatform.models.SpringAppDeployment.DefinitionStages.WithAttach;
 import com.azure.resourcemanager.appplatform.models.SpringService;
 import com.springops.deploymentagent.service.ApplicationDeployer;
+import com.springops.deploymentagent.service.HealthChecker;
+import com.springops.deploymentagent.service.model.AppCustomDomain;
 import com.springops.deploymentagent.service.model.AppDeployment;
+import com.springops.deploymentagent.service.model.AppDisk;
+import com.springops.deploymentagent.service.model.ProbeConfiguration;
 import com.springops.deploymentagent.service.model.AppDeployment.AppDeploymentBuilder;
 
 import org.apache.commons.compress.utils.IOUtils;
@@ -37,6 +52,9 @@ public class ApplicationDeployerImpl implements ApplicationDeployer {
     private SpringService springService;
     static Validator validator = Validation.buildDefaultValidatorFactory().getValidator();
 
+    @Autowired
+    private HealthChecker healthChecker;
+
     private Logger logger = LoggerFactory.getLogger(ApplicationDeployerImpl.class);
 
     private void validateDeploymentModel(AppDeployment expectedDeployment) {
@@ -46,50 +64,202 @@ public class ApplicationDeployerImpl implements ApplicationDeployer {
         }
     }
 
-    private void deployNewApp(AppDeployment deployment) throws IOException {
+    private SpringApp deployNewApp(AppDeployment deployment) throws IOException {
         File jar = getJarFile(deployment);
-        springService.apps().define(deployment.getAppName()).defineActiveDeployment("default").withJarFile(jar)
+
+        var create = springService.apps().define(deployment.getAppName()).defineActiveDeployment("default")
+                .withJarFile(jar).withMemory(deployment.getMemoryInGb() == null ? 1 : deployment.getMemoryInGb())
+                .withCpu(deployment.getCPU() == null ? 1 : deployment.getCPU())
+                .withJvmOptions(deployment.getJvmOptions()).withVersionName(deployment.getVersion())
+                .withInstance(deployment.getInstanceCount() == null ? 1 : deployment.getInstanceCount());
+        // .withEnvironment("dd", "value");
+        if (deployment.getEnvironmentVariables() != null && !deployment.getEnvironmentVariables().isEmpty()) {
+            for (Entry<String, String> envVar : deployment.getEnvironmentVariables().entrySet()) {
+                create.withEnvironment(envVar.getKey(), envVar.getValue());
+            }
+        }
+        SpringApp app = create.attach().create();
+
+        return app;
+    }
+
+    private void updateAppBlueGreen(SpringApp app, AppDeployment deployment) throws IOException {
+        File jar = getJarFile(deployment);
+        String stagingDeploymentName = getStagingDeploymentName(app.activeDeploymentName());
+        var create = app.deployments().define(stagingDeploymentName).withJarFile(jar)
                 .withCpu(deployment.getCPU() == null ? 1 : deployment.getCPU())
                 .withMemory(deployment.getMemoryInGb() == null ? 1 : deployment.getMemoryInGb())
                 .withJvmOptions(deployment.getJvmOptions()).withVersionName(deployment.getVersion())
-                .withInstance(deployment.getInstanceCount() == null ? 1 : deployment.getInstanceCount()).attach()
-                .create();
-    }
+                .withInstance(deployment.getInstanceCount() == null ? 1 : deployment.getInstanceCount());
 
-    private void updateApp(SpringApp app, AppDeployment deployment) throws IOException {
-        Update update = app.getActiveDeployment().update();
-        boolean needsUpdate = false;
-        if (deployment.getVersion() != null) {
-            needsUpdate = true;
-            File jar = getJarFile(deployment);
-            update = update.withJarFile(jar).withVersionName(deployment.getVersion());
-        }
-        if (deployment.getCPU() != null) {
-            needsUpdate = true;
-            update = update.withCpu(deployment.getCPU());
-        }
-        if (deployment.getInstanceCount() != null) {
-            needsUpdate = true;
-            update = update.withInstance(deployment.getInstanceCount());
-        }
-        if (deployment.getJvmOptions() != null) {
-            needsUpdate = true;
-            update = update.withJvmOptions(deployment.getJvmOptions());
-        }
-        if (deployment.getMemoryInGb() != null) {
-            needsUpdate = true;
-            update = update.withMemory(deployment.getMemoryInGb());
-        }
-        if (deployment.getEnvironmentVariables() != null) {
-            needsUpdate = true;
-            for (String name : deployment.getEnvironmentVariables().keySet()) {
-                update = update.withEnvironment(name, deployment.getEnvironmentVariables().get(name));
+        if (deployment.getEnvironmentVariables() != null && !deployment.getEnvironmentVariables().isEmpty()) {
+            for (Entry<String, String> envVar : deployment.getEnvironmentVariables().entrySet()) {
+                create.withEnvironment(envVar.getKey(), envVar.getValue());
             }
         }
 
-        if (needsUpdate) {
+        SpringAppDeployment springdeployment = create.create();
+        // check until it is up and running
+        boolean doCheck = true;
+        while (doCheck && springdeployment.status() != DeploymentResourceStatus.RUNNING
+                && springdeployment.status() != DeploymentResourceStatus.FAILED
+                && springdeployment.status() != DeploymentResourceStatus.STOPPED) {
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                doCheck = false;
+            }
+            springdeployment.refresh();
+        }
+        if (doCheck) {
+            if (springdeployment.status() == DeploymentResourceStatus.RUNNING) {
+                // check health
+                ProbeConfiguration probe = getProbeConfiguration(app, deployment, stagingDeploymentName);
+                if (healthChecker.check(probe)) {
+                    // activate
+                    app.update().withActiveDeployment(springdeployment.name()).apply();
+                    // remove other deployments
+                    List<SpringAppDeployment> otherDeployments = app.deployments().list().stream()
+                            .filter(d -> !d.name().equals(springdeployment.name()))
+                            .collect(Collectors.toList());
+                    for (SpringAppDeployment otherDeployment : otherDeployments) {
+                        logger.info("Deleting deployment {}", otherDeployment.name());
+                        app.deployments().deleteById(otherDeployment.id());
+                    }
+                } else{
+                    logger.warn("Health check for new deployment failed");
+                }
+
+            } else {
+                app.deployments().deleteByName(stagingDeploymentName);
+            }
+        }
+    }
+
+    private String getStagingDeploymentName(String activeDeploymentName) {
+        switch(activeDeploymentName){
+            case "blue":
+            case "default":
+                return "green";
+            case "green":
+                return "blue";
+            case "pink":
+                return "blue";
+            default:
+                return "pink";
+        }
+    }
+
+    private ProbeConfiguration getProbeConfiguration(SpringApp app, AppDeployment deployment,
+            String stagingDeploymentName) throws MalformedURLException {
+        String baseUrl = getDeploymentBaseUrl(app, stagingDeploymentName);
+        String healthEndpointUrl = String.format("%s/actuator", baseUrl);
+        return ProbeConfiguration.builder().appName(app.name()).testEndpoint(healthEndpointUrl).delayBetweenProbes(1000)
+                .maxAllowedFailures(2).maxRowFailures(2).timesToCheck(5).build();
+    }
+
+    private String getDeploymentBaseUrl(SpringApp app, String deploymentName) {
+        return String.format("%s/%s/%s", app.parent().listTestKeys().primaryTestEndpoint(), app.name(), deploymentName);
+    }
+
+    private void updateApp(SpringApp app, AppDeployment deployment) throws IOException {
+
+        if (needsUpdate(deployment)) {
+            Update update = app.getActiveDeployment().update();
+            if (deployment.getVersion() != null) {
+                File jar = getJarFile(deployment);
+                update = update.withJarFile(jar).withVersionName(deployment.getVersion());
+            }
+            if (deployment.getCPU() != null) {
+                update = update.withCpu(deployment.getCPU());
+            }
+            if (deployment.getInstanceCount() != null) {
+                update = update.withInstance(deployment.getInstanceCount());
+            }
+            if (deployment.getJvmOptions() != null) {
+                update = update.withJvmOptions(deployment.getJvmOptions());
+            }
+            if (deployment.getMemoryInGb() != null) {
+                update = update.withMemory(deployment.getMemoryInGb());
+            }
+            if (deployment.getEnvironmentVariables() != null) {
+                for (String name : deployment.getEnvironmentVariables().keySet()) {
+                    update = update.withEnvironment(name, deployment.getEnvironmentVariables().get(name));
+                }
+            }
+            // remove unused environment variables
+            Map<String, String> currentEnv = app.getActiveDeployment().innerModel().properties().deploymentSettings()
+                    .environmentVariables();
+            if (currentEnv != null) {
+                for (String name : currentEnv.keySet()) {
+                    if (deployment.getEnvironmentVariables() == null
+                            || !deployment.getEnvironmentVariables().containsKey(name)) {
+                        update = update.withoutEnvironment(name);
+                    }
+                }
+            }
+
             update.apply();
         }
+
+        updateAppSettings(app, deployment);
+    }
+
+    private void updateAppSettings(SpringApp app, AppDeployment deployment) {
+        // after creation properties
+        boolean requiresUpdate = false;
+        var update = app.update();
+        if (deployment.getIsPublic() != null) {
+            requiresUpdate = true;
+            if (deployment.getIsPublic()) {
+                update = update.withDefaultPublicEndpoint();
+            } else {
+                update = update.withoutDefaultPublicEndpoint();
+            }
+        }
+        if (deployment.getHttpsOnly() != null) {
+            requiresUpdate = true;
+            if (deployment.getHttpsOnly()) {
+                update = update.withHttpsOnly();
+            } else {
+                update = update.withoutHttpsOnly();
+            }
+        }
+        if (deployment.getCustomDomains() != null) {
+            // requiresUpdate = true;
+            // if ()
+            // if (deployment.getCustomDomain().getCertThumbprint() != null) {
+            // update = update.withCustomDomain(deployment.getCustomDomain().getDomain(),
+            // deployment.getCustomDomain().getCertThumbprint());
+            // } else {
+            // update = update.withCustomDomain(deployment.getCustomDomain().getDomain());
+            // }
+        }
+        if (deployment.getTemporaryDisk() != null) {
+            requiresUpdate = true;
+            update = update.withTemporaryDisk(deployment.getTemporaryDisk().getSizeInGb(),
+                    deployment.getTemporaryDisk().getMountPath());
+        }
+        if (deployment.getPersistentDisk() != null) {
+            requiresUpdate = true;
+            update = update.withPersistentDisk(deployment.getPersistentDisk().getSizeInGb(),
+                    deployment.getPersistentDisk().getMountPath());
+        }
+        if (requiresUpdate) {
+            logger.info("An update after creation required");
+            update.apply();
+        } else {
+            logger.info("No application properties update required");
+        }
+
+    }
+
+    boolean needsUpdate(AppDeployment deployment) {
+        boolean needsUpdate;
+        needsUpdate = deployment.getVersion() != null || deployment.getCPU() != null
+                || deployment.getInstanceCount() != null || deployment.getJvmOptions() != null
+                || deployment.getMemoryInGb() != null || deployment.getEnvironmentVariables() != null;
+        return needsUpdate;
     }
 
     private File getJarFile(AppDeployment deployment) throws IOException {
@@ -125,23 +295,63 @@ public class ApplicationDeployerImpl implements ApplicationDeployer {
         if (!Objects.equals(expected.getEnvironmentVariables(), actual.getEnvironmentVariables())) {
             builder = builder.environmentVariables(expected.getEnvironmentVariables());
         }
+
+        // check additional settings
+        if (!Objects.equals(expected.getIsPublic(), actual.getIsPublic())) {
+            builder.isPublic(expected.getIsPublic());
+        }
+        if (!Objects.equals(expected.getHttpsOnly(), actual.getHttpsOnly())) {
+            builder.httpsOnly(expected.getHttpsOnly());
+        }
+        // if (!Objects.deepEquals(expected.getCustomDomain(),
+        // actual.getCustomDomain())) {
+        // builder.customDomain(expected.getCustomDomain());
+        // }
+        if (!Objects.deepEquals(expected.getTemporaryDisk(), actual.getTemporaryDisk())) {
+            builder.temporaryDisk(expected.getTemporaryDisk());
+        }
+        if (!Objects.deepEquals(expected.getPersistentDisk(), actual.getPersistentDisk())) {
+            builder.persistentDisk(expected.getPersistentDisk());
+        }
+
         return builder.build();
     }
 
     private AppDeployment getCurrentStatus(SpringApp app) {
+
         SpringAppDeployment deployment = app.getActiveDeployment();
+        AppDeploymentBuilder builder = AppDeployment.builder();
         if (deployment != null) {
             String version = deployment.innerModel().properties().source().version();
-            return AppDeployment.builder().appName(app.name())
+            builder = builder.appName(app.name())
                     .environmentVariables(
                             deployment.innerModel().properties().deploymentSettings().environmentVariables())
                     .version(version).CPU(deployment.innerModel().properties().deploymentSettings().cpu())
                     .JvmOptions(deployment.innerModel().properties().deploymentSettings().jvmOptions())
                     .MemoryInGb(deployment.innerModel().properties().deploymentSettings().memoryInGB())
-                    .instanceCount(app.getActiveDeployment().instances().size()).build();
+                    .instanceCount(app.getActiveDeployment().instances().size());
         } else {
-            return AppDeployment.builder().appName(app.name()).build();
+            builder = AppDeployment.builder().appName(app.name());
         }
+        builder = builder.isPublic(app.isPublic()).httpsOnly(app.isHttpsOnly());
+        List<SpringAppDomain> appDomains = app.customDomains().list().stream().collect(Collectors.toList());
+        if (!appDomains.isEmpty()) {
+            builder.customDomains(appDomains.stream().map(ad -> {
+                if (ad.properties().certName() != null && !ad.properties().certName().isEmpty()) {
+                    return new AppCustomDomain(ad.properties().appName(), ad.properties().certName(),
+                            ad.properties().thumbprint());
+                } else {
+                    return new AppCustomDomain(ad.properties().appName(), null, null);
+                }
+            }).collect(Collectors.toList()));
+        }
+        if (app.temporaryDisk() != null && app.temporaryDisk().sizeInGB() > 0) {
+            builder.temporaryDisk(new AppDisk(app.temporaryDisk().sizeInGB(), app.temporaryDisk().mountPath()));
+        }
+        if (app.persistentDisk() != null && app.persistentDisk().sizeInGB() > 0) {
+            builder.persistentDisk(new AppDisk(app.persistentDisk().sizeInGB(), app.persistentDisk().mountPath()));
+        }
+        return builder.build();
     }
 
     private SpringApp getSpringApp(String appName) {
@@ -158,7 +368,7 @@ public class ApplicationDeployerImpl implements ApplicationDeployer {
         return app;
     }
 
-    @Job(name = "Deploy Azure Spring Cloud application" )
+    @Job(name = "Deploy Azure Spring Cloud application")
     @Override
     public void deployApp(AppDeployment expectedDeployment) throws IOException {
 
@@ -170,12 +380,21 @@ public class ApplicationDeployerImpl implements ApplicationDeployer {
 
         if (app == null) {
             logger.info("App doesn't exist. Deploy new.");
-            deployNewApp(expectedDeployment);
+            app = deployNewApp(expectedDeployment);
+            updateAppSettings(app, expectedDeployment);
         } else {
             logger.info("App already exists. Deploy update.");
             AppDeployment actualDeployment = getCurrentStatus(app);
+
             AppDeployment toDeploy = getDiffDeployment(actualDeployment, expectedDeployment);
-            updateApp(app, toDeploy);
+            if (this.needsUpdate(toDeploy)) {
+                if (Objects.equals(true, expectedDeployment.getBlueGreen())) {
+                    updateAppBlueGreen(app, expectedDeployment);
+                } else {
+                    updateApp(app, toDeploy);
+                }
+                updateAppSettings(app, toDeploy);
+            }
         }
     }
 

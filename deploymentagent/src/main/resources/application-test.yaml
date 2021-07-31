@@ -1,7 +1,7 @@
 springops:
     azure-spring-cloud:
-        resource-group: rg-springcloudlab
-        service-name: asclabfmiguel
+        resource-group: rg-asclab
+        service-name: fmiguelasclab
         subscription-id: 98bc5d13-2aa1-45cb-bf49-45aa47e220bf
     git:
         uri: https://github.com/felipmiguel/springopssamples.git
