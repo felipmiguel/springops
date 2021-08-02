@@ -1,8 +1,15 @@
+spring:
+    application:
+        name: "spring-ops"
+    cloud:
+        config:
+            auto-refresh: true
+            refresh-interval: 60
 springops:
     azure-spring-cloud:
-        drift-checking-frequency: 300000
+        drift-checking-frequency: "*/5 * * * *"
     git:
-        frequency: 60000
+        frequency: "* * * * *"
 
 
         

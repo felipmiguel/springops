@@ -17,7 +17,7 @@
 		<hibernate-validator.version>6.0.13.Final</hibernate-validator.version>
 		<javax.el.version>3.0.0</javax.el.version>
 		<jobrunr.version>3.2.1</jobrunr.version>
-
+		<springframework.cloud.version>3.0.3</springframework.cloud.version>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -38,6 +38,22 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-web</artifactId>
 		</dependency>
+		<dependency>
+			<groupId>org.springframework.cloud</groupId>
+			<artifactId>spring-cloud-starter-config</artifactId>
+			<version>${springframework.cloud.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.cloud</groupId>
+			<artifactId>spring-cloud-starter-bootstrap</artifactId>
+			<version>${springframework.cloud.version}</version>
+		  </dependency>
+		<dependency>
+			<groupId>com.microsoft.azure</groupId>
+			<artifactId>spring-cloud-starter-azure-spring-cloud-client</artifactId>
+			<version>2.4.0</version>
+		</dependency>
+
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-webflux</artifactId>

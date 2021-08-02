@@ -11,5 +11,6 @@ public class ProbeConfiguration {
     int timesToCheck;
     int maxAllowedFailures;
     int maxRowFailures;
+    int delayBeforeProbes;
     int delayBetweenProbes;    
 }

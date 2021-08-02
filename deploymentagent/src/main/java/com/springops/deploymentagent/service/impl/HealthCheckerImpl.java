@@ -36,9 +36,19 @@ public class HealthCheckerImpl implements HealthChecker {
 
         int failures = 0;
         int failuresInARow = 0;
+        try {
+            logger.info("Waiting {} ms before starting probes");
+            Thread.sleep(configuration.getDelayBeforeProbes());
+
+        } catch (InterruptedException e) {
+            logger.info("Interrupted. bye, bye", e);
+            return false;
+        }
+        logger.info("Starting probes to endpoint {}", normalizedUri);
         for (int i = 0; i < configuration.getTimesToCheck() && !failed(failures, failuresInARow, configuration); i++) {
 
             try {
+                logger.info("Probe {}", i);
                 ResponseEntity<Object> response = webClient.get().accept(MediaType.APPLICATION_JSON)
                         .header("Authorization",
                                 "Basic " + Base64.getEncoder().encodeToString(uri.getUserInfo().getBytes()))
@@ -48,17 +58,9 @@ public class HealthCheckerImpl implements HealthChecker {
                     failuresInARow++;
                 } else {
                     // if (response.getBody().getStatus().equals("UP")) {
-                    //     failuresInARow = 0;
+                    // failuresInARow = 0;
                     // }
                 }
-                // Object healthInfo = webClient.get().retrieve().bodyToMono(Object.class)
-                // .block();
-                // if (healthInfo.getStatus().equals("UP")) {
-                // failuresInARow = 0;
-                // } else {
-                // failures++;
-                // failuresInARow++;
-                // }
             } catch (Exception e) {
                 logger.warn("An error happened during probe", e);
                 failures++;
@@ -67,6 +69,7 @@ public class HealthCheckerImpl implements HealthChecker {
             try {
                 Thread.sleep(configuration.getDelayBetweenProbes());
             } catch (InterruptedException e) {
+                logger.info("Interrupted. bye, bye", e);
                 return false;
             }
 

@@ -7,14 +7,11 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
-import java.net.URI;
-import java.net.URL;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Set;
-import java.util.Map.Entry;
-import java.util.stream.Collector;
 import java.util.stream.Collectors;
 
 import javax.validation.ConstraintViolation;
@@ -26,17 +23,16 @@ import com.azure.core.management.exception.ManagementException;
 import com.azure.resourcemanager.appplatform.models.DeploymentResourceStatus;
 import com.azure.resourcemanager.appplatform.models.SpringApp;
 import com.azure.resourcemanager.appplatform.models.SpringAppDeployment;
-import com.azure.resourcemanager.appplatform.models.SpringAppDomain;
 import com.azure.resourcemanager.appplatform.models.SpringAppDeployment.Update;
-import com.azure.resourcemanager.appplatform.models.SpringAppDeployment.DefinitionStages.WithAttach;
+import com.azure.resourcemanager.appplatform.models.SpringAppDomain;
 import com.azure.resourcemanager.appplatform.models.SpringService;
 import com.springops.deploymentagent.service.ApplicationDeployer;
 import com.springops.deploymentagent.service.HealthChecker;
 import com.springops.deploymentagent.service.model.AppCustomDomain;
 import com.springops.deploymentagent.service.model.AppDeployment;
+import com.springops.deploymentagent.service.model.AppDeployment.AppDeploymentBuilder;
 import com.springops.deploymentagent.service.model.AppDisk;
 import com.springops.deploymentagent.service.model.ProbeConfiguration;
-import com.springops.deploymentagent.service.model.AppDeployment.AppDeploymentBuilder;
 
 import org.apache.commons.compress.utils.IOUtils;
 import org.jobrunr.jobs.annotations.Job;
@@ -154,8 +150,8 @@ public class ApplicationDeployerImpl implements ApplicationDeployer {
             String stagingDeploymentName) throws MalformedURLException {
         String baseUrl = getDeploymentBaseUrl(app, stagingDeploymentName);
         String healthEndpointUrl = String.format("%s/actuator", baseUrl);
-        return ProbeConfiguration.builder().appName(app.name()).testEndpoint(healthEndpointUrl).delayBetweenProbes(1000)
-                .maxAllowedFailures(2).maxRowFailures(2).timesToCheck(5).build();
+        return ProbeConfiguration.builder().appName(app.name()).testEndpoint(healthEndpointUrl).delayBetweenProbes(5000)
+                .maxAllowedFailures(3).maxRowFailures(3).timesToCheck(5).build();
     }
 
     private String getDeploymentBaseUrl(SpringApp app, String deploymentName) {

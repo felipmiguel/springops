@@ -36,7 +36,7 @@
   },
   {
     "name": "springops.azure-spring-cloud.drift-checking-frequency",
-    "type": "java.lang.Integer",
+    "type": "java.lang.String",
     "description": "A description for 'springops.azure-spring-cloud.drift-checking-frequency'"
   },
   {
