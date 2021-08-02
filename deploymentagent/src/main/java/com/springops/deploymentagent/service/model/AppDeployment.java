@@ -62,6 +62,9 @@ public class AppDeployment {
     /** The application can be accessed using https only or not */
     Boolean httpsOnly;
 
+    /** End to end TLS to secure traffic from ingress controller to apps */
+    Boolean endToEndTls;
+
     /** Application custom domain */
     List<AppCustomDomain> customDomains;
 
