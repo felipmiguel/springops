@@ -8,6 +8,7 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -23,7 +24,10 @@ import javax.validation.Validator;
 
 import com.azure.core.management.exception.ManagementException;
 import com.azure.resourcemanager.appplatform.models.DeploymentResourceStatus;
+import com.azure.resourcemanager.appplatform.models.ManagedIdentityProperties;
+import com.azure.resourcemanager.appplatform.models.ManagedIdentityType;
 import com.azure.resourcemanager.appplatform.models.PersistentDisk;
+import com.azure.resourcemanager.appplatform.models.RuntimeVersion;
 import com.azure.resourcemanager.appplatform.models.SpringApp;
 import com.azure.resourcemanager.appplatform.models.SpringAppDeployment;
 import com.azure.resourcemanager.appplatform.models.SpringAppDeployment.Update;
@@ -51,6 +55,8 @@ public class ApplicationDeployerImpl implements ApplicationDeployer {
     private SpringService springService;
     static Validator validator = Validation.buildDefaultValidatorFactory().getValidator();
 
+    static final Collection<RuntimeVersion> allowedRuntimes = RuntimeVersion.values();
+
     @Autowired
     private HealthChecker healthChecker;
 
@@ -61,6 +67,14 @@ public class ApplicationDeployerImpl implements ApplicationDeployer {
         if (!violations.isEmpty()) {
             throw new ValidationException(violations.toString());
         }
+        if (expectedDeployment.getRuntime() != null) {
+            RuntimeVersion v = RuntimeVersion.fromString(expectedDeployment.getRuntime());
+            if (!allowedRuntimes.contains(v)) {
+                String values = allowedRuntimes.stream().map(rv -> rv.toString()).collect(Collectors.joining(","));
+                throw new ValidationException(String.format("The runtime version %s is not valid. Allowed values %s",
+                        expectedDeployment.getRuntime(), values));
+            }
+        }
     }
 
     private SpringApp deployNewApp(AppDeployment deployment) throws IOException {
@@ -68,6 +82,8 @@ public class ApplicationDeployerImpl implements ApplicationDeployer {
 
         var create = springService.apps().define(deployment.getAppName()).defineActiveDeployment("default")
                 .withJarFile(jar).withMemory(deployment.getMemoryInGb() == null ? 1 : deployment.getMemoryInGb())
+                .withRuntime(deployment.getRuntime() == null ? RuntimeVersion.JAVA_8
+                        : RuntimeVersion.fromString(deployment.getRuntime()))
                 .withCpu(deployment.getCPU() == null ? 1 : deployment.getCPU())
                 .withJvmOptions(deployment.getJvmOptions()).withVersionName(deployment.getVersion())
                 .withInstance(deployment.getInstanceCount() == null ? 1 : deployment.getInstanceCount());
@@ -77,6 +93,7 @@ public class ApplicationDeployerImpl implements ApplicationDeployer {
                 create.withEnvironment(envVar.getKey(), envVar.getValue());
             }
         }
+
         SpringApp app = create.attach().create();
 
         return app;
@@ -168,6 +185,9 @@ public class ApplicationDeployerImpl implements ApplicationDeployer {
                 File jar = getJarFile(deployment);
                 update = update.withJarFile(jar).withVersionName(deployment.getVersion());
             }
+            if (deployment.getRuntime() != null) {
+                update = update.withRuntime(RuntimeVersion.fromString(deployment.getRuntime()));
+            }
             if (deployment.getCPU() != null) {
                 update = update.withCpu(deployment.getCPU());
             }
@@ -212,6 +232,16 @@ public class ApplicationDeployerImpl implements ApplicationDeployer {
             app.innerModel().properties().withEnableEndToEndTls(deployment.getEndToEndTls());
         }
         var update = app.update();
+
+        if (deployment.getIdentity() != null) {
+            requiresUpdate = true;
+            if (deployment.getIdentity()) {
+                app.innerModel()
+                        .withIdentity(new ManagedIdentityProperties().withType(ManagedIdentityType.SYSTEM_ASSIGNED));
+            } else {
+                app.innerModel().withIdentity(new ManagedIdentityProperties().withType(ManagedIdentityType.NONE));
+            }
+        }
         if (deployment.getIsPublic() != null) {
             requiresUpdate = true;
             if (deployment.getIsPublic()) {
@@ -291,7 +321,8 @@ public class ApplicationDeployerImpl implements ApplicationDeployer {
         boolean needsUpdate;
         needsUpdate = deployment.getVersion() != null || deployment.getCPU() != null
                 || deployment.getInstanceCount() != null || deployment.getJvmOptions() != null
-                || deployment.getMemoryInGb() != null || deployment.getEnvironmentVariables() != null;
+                || deployment.getMemoryInGb() != null || deployment.getEnvironmentVariables() != null
+                || deployment.getRuntime() != null;
         return needsUpdate;
     }
 
@@ -299,7 +330,8 @@ public class ApplicationDeployerImpl implements ApplicationDeployer {
         boolean needsUpdate;
         needsUpdate = deployment.getIsPublic() != null || deployment.getHttpsOnly() != null
                 || deployment.getEndToEndTls() != null || deployment.getCustomDomains() != null
-                || deployment.getTemporaryDisk() != null || deployment.getPersistentDisk() != null;
+                || deployment.getTemporaryDisk() != null || deployment.getPersistentDisk() != null
+                || deployment.getRuntime() != null || deployment.getIdentity() != null;
         return needsUpdate;
 
     }
@@ -339,6 +371,12 @@ public class ApplicationDeployerImpl implements ApplicationDeployer {
         }
 
         // check additional settings
+        if (!Objects.equals(expected.getIdentity(), actual.getIdentity())) {
+            builder.identity(expected.getIdentity());
+        }
+        if (!Objects.equals(expected.getRuntime(), actual.getRuntime())) {
+            builder.runtime(expected.getRuntime());
+        }
         if (!Objects.equals(expected.getIsPublic(), actual.getIsPublic())) {
             builder.isPublic(expected.getIsPublic());
         }
@@ -381,12 +419,18 @@ public class ApplicationDeployerImpl implements ApplicationDeployer {
                     .version(version).CPU(deployment.innerModel().properties().deploymentSettings().cpu())
                     .JvmOptions(deployment.innerModel().properties().deploymentSettings().jvmOptions())
                     .MemoryInGb(deployment.innerModel().properties().deploymentSettings().memoryInGB())
+                    .runtime(deployment.innerModel().properties().deploymentSettings().runtimeVersion().toString())
                     .instanceCount(app.getActiveDeployment().instances().size());
         } else {
             builder = AppDeployment.builder().appName(app.name());
         }
         builder = builder.isPublic(app.isPublic()).httpsOnly(app.isHttpsOnly())
                 .endToEndTls(app.innerModel().properties().enableEndToEndTls());
+        if (app.identity() == null) {
+            builder = builder.identity(false);
+        } else {
+            builder = builder.identity(app.identity().type().equals(ManagedIdentityType.SYSTEM_ASSIGNED));
+        }
         List<SpringAppDomain> appDomains = app.customDomains().list().stream().collect(Collectors.toList());
         if (!appDomains.isEmpty()) {
             builder.customDomains(appDomains.stream().map(ad -> {

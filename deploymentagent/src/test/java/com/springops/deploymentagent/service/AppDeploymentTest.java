@@ -38,7 +38,7 @@ public class AppDeploymentTest {
         URL releaseUrl = URI.create(
                 "https://springopsartifacts.blob.core.windows.net/releases/spring-cloud-microservice-0.0.1-SNAPSHOT.jar")
                 .toURL();
-        String appName = "sampleapp";
+        String appName = "simple-app";
         AppDeployment deployment = AppDeployment.builder().appName(appName).version("1.0").MemoryInGb(1)
                 .artifactsSource(releaseUrl).instanceCount(1)
                 .environmentVariables(Map.of("env1", "val1", "env2", "val2")).build();
@@ -51,7 +51,7 @@ public class AppDeploymentTest {
         URL releaseUrl = URI.create(
                 "https://springopsartifacts.blob.core.windows.net/releases/spring-cloud-microservice-0.0.1-SNAPSHOT.jar")
                 .toURL();
-        String appName = "sampleapp";
+        String appName = "sample-bluegreen-app";
         AppDeployment deployment = AppDeployment.builder().blueGreen(true).appName(appName).version("1").MemoryInGb(1)
                 .artifactsSource(releaseUrl).instanceCount(1)
                 .environmentVariables(Map.of("env1", "val1", "env2", "val2")).build();
@@ -82,6 +82,45 @@ public class AppDeploymentTest {
         cleanUp(deployment);
     }
 
+    @Test
+    void deployAndChangeRuntime() throws IOException {
+        // ARRANGE
+        URL releaseUrl = URI.create(
+                "https://springopsartifacts.blob.core.windows.net/releases/spring-cloud-microservice-0.0.1-SNAPSHOT.jar")
+                .toURL();
+        String appName = "sample-runtime";
+        AppDeployment deployment = AppDeployment.builder().appName(appName).version("1").MemoryInGb(1)
+                .artifactsSource(releaseUrl).instanceCount(1).endToEndTls(true)
+                .environmentVariables(Map.of("env1", "val1", "env2", "val2")).isPublic(true).httpsOnly(true)
+                .temporaryDisk(AppDisk.builder().sizeInGb(3).mountPath("/tmp").build())
+                // .persistentDisk(AppDisk.builder().sizeInGb(5).mountPath("/persistent").build())
+                .build();
+        deployAndAssert(deployment);
+        deployment.setRuntime("Java_11");
+        deployAndAssert(deployment);
+        cleanUp(deployment);
+    }
+
+    @Test
+    void deployWithIdentity() throws IOException {
+        // ARRANGE
+        URL releaseUrl = URI.create(
+                "https://springopsartifacts.blob.core.windows.net/releases/spring-cloud-microservice-0.0.1-SNAPSHOT.jar")
+                .toURL();
+        String appName = "sample-identity";
+        AppDeployment deployment = AppDeployment.builder().appName(appName).version("1").MemoryInGb(1)
+                .artifactsSource(releaseUrl).instanceCount(1).endToEndTls(true)
+                .environmentVariables(Map.of("env1", "val1", "env2", "val2")).isPublic(true).httpsOnly(true)
+                .temporaryDisk(AppDisk.builder().sizeInGb(3).mountPath("/tmp").build()).identity(true)
+                // .persistentDisk(AppDisk.builder().sizeInGb(5).mountPath("/persistent").build())
+                .build();
+        deployAndAssert(deployment);
+        deployment.setIdentity(false);
+        deployAndAssert(deployment);
+        cleanUp(deployment);
+
+    }
+
     private void deployAppAndAssert(AppDeployment deployment) throws IOException {
         AppDeployment deployedVersion;
         deployAndAssert(deployment);
@@ -108,10 +147,18 @@ public class AppDeploymentTest {
         // ASSERT
         AppDeployment deployedVersion = deployer.getCurrentStatus(deployment.getAppName());
         assertNotNull(deployedVersion);
-        assertEquals(1, deployedVersion.getInstanceCount());
-        assertEquals(deployment.getHttpsOnly(), deployedVersion.getHttpsOnly());
-        assertEquals(deployment.getIsPublic(), deployedVersion.getIsPublic());
+        assertEquals(deployment.getInstanceCount() == null ? 1 : deployment.getInstanceCount(),
+                deployedVersion.getInstanceCount());
+        assertEquals(deployment.getRuntime() == null ? "Java_8" : deployment.getRuntime(),
+                deployedVersion.getRuntime());
+
+        assertEquals(deployment.getHttpsOnly() == null ? false : deployment.getHttpsOnly(),
+                deployedVersion.getHttpsOnly());
+        assertEquals(deployment.getIsPublic() == null ? false : deployment.getIsPublic(),
+                deployedVersion.getIsPublic());
         assertEquals(deployment.getEnvironmentVariables().size(), deployedVersion.getEnvironmentVariables().size());
+        assertEquals(deployment.getIdentity() == null ? false : deployment.getIdentity(),
+                deployedVersion.getIdentity());
         for (String envVar : deployment.getEnvironmentVariables().keySet()) {
             assertTrue(deployedVersion.getEnvironmentVariables().containsKey(envVar));
             assertEquals(deployment.getEnvironmentVariables().get(envVar),
@@ -132,8 +179,8 @@ public class AppDeploymentTest {
             assertTrue(Objects.deepEquals(deployment.getPersistentDisk(), deployedVersion.getPersistentDisk()));
         }
 
-        assertEquals(deployment.getIsPublic(), deployedVersion.getIsPublic());
-        assertEquals(deployment.getHttpsOnly(), deployedVersion.getHttpsOnly());
+        // assertEquals(deployment.getIsPublic(), deployedVersion.getIsPublic());
+        // assertEquals(deployment.getHttpsOnly(), deployedVersion.getHttpsOnly());
         assertEquals(deployment.getCustomDomains() == null, deployedVersion.getCustomDomains() == null);
         if (deployment.getCustomDomains() != null) {
             for (AppCustomDomain domain : deployment.getCustomDomains()) {
@@ -146,7 +193,8 @@ public class AppDeploymentTest {
 
             }
         }
-        assertEquals(deployment.getEndToEndTls(), deployedVersion.getEndToEndTls());
+        assertEquals(deployment.getEndToEndTls() == null ? false : deployment.getEndToEndTls(),
+                deployedVersion.getEndToEndTls());
 
     }
 
@@ -160,7 +208,7 @@ public class AppDeploymentTest {
 
     @Test
     void refreshAppStatus() {
-        AppDeployment deployment = deployer.getCurrentStatus("sampleapp");
+        AppDeployment deployment = deployer.getCurrentStatus("sample-identity");
         assertNotNull(deployment);
     }
 

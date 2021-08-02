@@ -54,7 +54,11 @@ public class AppDeployment {
     /** Environment variables */
     Map<String, String> environmentVariables;
 
-    // ADDITIONAL SETTINGS
+    // Application SETTINGS
+
+    Boolean identity;
+    /** Runtime version: Java_8, Java_11, NetCore_31 */
+    String runtime;
 
     /** The application exposes a public endpoint */
     Boolean isPublic;
