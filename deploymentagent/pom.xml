@@ -2,14 +2,14 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 	<parent>
-		<groupId>org.springframework.boot</groupId>
-		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>2.5.3</version>
-		<relativePath /> <!-- lookup parent from repository -->
+		<groupId>org.springops</groupId>
+		<artifactId>springops-parent</artifactId>
+		<version>${springops.version}</version>
+		<relativePath>..</relativePath>
 	</parent>
 	<groupId>com.springops</groupId>
 	<artifactId>springops-agent</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
+	<version>${springops.version}</version>
 	<name>springops-agent</name>
 	<description>SpringOps agent that coordinates the deployment of microservices</description>
 	<properties>
