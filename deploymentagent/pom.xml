@@ -8,24 +8,19 @@
 		<relativePath /> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>com.springops</groupId>
-	<artifactId>deploymentagent</artifactId>
+	<artifactId>springops-agent</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>deploymentagent</name>
-	<description>Demo project for Spring Boot</description>
+	<name>springops-agent</name>
+	<description>SpringOps agent that coordinates the deployment of microservices</description>
 	<properties>
 		<java.version>11</java.version>
-		<hibernate-validator.version>6.0.13.Final</hibernate-validator.version>
+		<hibernate-validator.version>6.2.0.Final</hibernate-validator.version>
 		<javax.el.version>3.0.0</javax.el.version>
 		<jobrunr.version>3.2.1</jobrunr.version>
-		<springframework.cloud.version>3.0.3</springframework.cloud.version>
+		<spring-cloud.version>2020.0.3</spring-cloud.version>
+		<!-- <springframework.cloud.version>2020.0.3</springframework.cloud.version> -->
 	</properties>
 	<dependencies>
-		<dependency>
-			<groupId>org.springframework.cloud</groupId>
-			<artifactId>spring-cloud-dependencies</artifactId>
-			<version>2020.0.3</version>
-			<type>pom</type>
-		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter</artifactId>
@@ -41,13 +36,11 @@
 		<dependency>
 			<groupId>org.springframework.cloud</groupId>
 			<artifactId>spring-cloud-starter-config</artifactId>
-			<version>${springframework.cloud.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.cloud</groupId>
 			<artifactId>spring-cloud-starter-bootstrap</artifactId>
-			<version>${springframework.cloud.version}</version>
-		  </dependency>
+		</dependency>
 		<dependency>
 			<groupId>com.microsoft.azure</groupId>
 			<artifactId>spring-cloud-starter-azure-spring-cloud-client</artifactId>
@@ -101,35 +94,14 @@
 		</dependency>
 
 		<!-- Validation -->
-		<!-- <dependency>
-			<groupId>javax.validation</groupId>
-			<artifactId>validation-api</artifactId>
-			<version>2.0.1.Final</version>
-		</dependency>
 		<dependency>
-			<groupId>javax</groupId>
-			<artifactId>javaee-api</artifactId>
-			<version>8.0.1</version>
-		</dependency>
-		<dependency>
-            <groupId>org.hibernate</groupId>
-            <artifactId>hibernate-validator</artifactId>
-            <version>7.0.1.Final</version>
-        </dependency> -->
-		<dependency>
-			<groupId>javax.validation</groupId>
-			<artifactId>validation-api</artifactId>
-			<version>2.0.1.Final</version>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-validation</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>org.hibernate.validator</groupId>
 			<artifactId>hibernate-validator</artifactId>
 			<version>${hibernate-validator.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>org.glassfish</groupId>
-			<artifactId>javax.el</artifactId>
-			<version>${javax.el.version}</version>
 		</dependency>
 
 
@@ -152,10 +124,18 @@
 		</dependency>
 
 
-		
-
-		
 	</dependencies>
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>org.springframework.cloud</groupId>
+				<artifactId>spring-cloud-dependencies</artifactId>
+				<version>${spring-cloud.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
 
 	<build>
 		<plugins>

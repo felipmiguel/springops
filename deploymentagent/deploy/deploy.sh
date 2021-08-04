@@ -2,7 +2,7 @@ RESOURCE_GROUP="rg-asclab"
 REGION="westeurope"
 SPRING_CLOUD_SERVICE="fmiguelasclab"
 SPRINGOPS_AGENT_NAME="springops-agent"
-SPRINGOPS_AGENT_JAR="./target/deploymentagent-0.0.1-SNAPSHOT.jar"
+SPRINGOPS_AGENT_JAR="./target/springops-agent-0.0.1-SNAPSHOT.jar"
 
 
 

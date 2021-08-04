@@ -50,28 +50,9 @@ public class GitChangesImpl implements ChangesChecker {
     public List<AppDeployment> checkApp(String appName) throws IOException {
         if (checkChanges(appName)) {
             return parser.parseDirectory(getAppPath(appName), AppDeployment.class);
-            // String[] files = localPath.list(new FilenameFilter() {
-            //     @Override
-            //     public boolean accept(File dir, String name) {
-            //         return name.endsWith(".yaml") || name.endsWith(".yml") || name.endsWith(".json");
-            //     }
-            // });
-            // return Arrays.asList(files).stream()
-            //         .map(filePath -> parseFile(filePath))
-            //         .filter(appDeployement -> appDeployement != null)
-            //         .collect(Collectors.toList());
         }
         return null;
     }
-
-    // private AppDeployment parseFile(String filePath) {
-    //     try {
-    //         return mapper.readValue(new File(filePath), AppDeployment.class);
-    //     } catch (IOException e) {
-    //         e.printStackTrace();
-    //         return null;
-    //     }
-    // }
 
     private boolean checkChanges(String appName) {
         logger.info("Check GIT changes for app " + appName);
@@ -119,23 +100,11 @@ public class GitChangesImpl implements ChangesChecker {
             PullResult result = pull.call();
 
             return result.isSuccessful() && result.getFetchResult().getTrackingRefUpdates().isEmpty() == false;
-            // return result.isSuccessful()
-            // && result.getRebaseResult().getStatus() != Status.UP_TO_DATE;
 
         } catch (Exception e) {
             logger.error("Error pulling changes", e);
             return false;
         }
     }
-
-    // private void gitFetch(File localRepoPath){
-    // try (Git git = Git.open(localRepoPath)){
-    // FetchCommand fetchCommand = git.fetch();
-    // fetchCommand
-
-    // } catch(Exception ex){
-
-    // }
-    // }
 
 }

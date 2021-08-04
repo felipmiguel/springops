@@ -14,10 +14,10 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Set;
-import java.util.stream.Collector;
 import java.util.stream.Collectors;
 
 import javax.validation.ConstraintViolation;
+import javax.validation.Valid;
 import javax.validation.Validation;
 import javax.validation.ValidationException;
 import javax.validation.Validator;
@@ -26,7 +26,6 @@ import com.azure.core.management.exception.ManagementException;
 import com.azure.resourcemanager.appplatform.models.DeploymentResourceStatus;
 import com.azure.resourcemanager.appplatform.models.ManagedIdentityProperties;
 import com.azure.resourcemanager.appplatform.models.ManagedIdentityType;
-import com.azure.resourcemanager.appplatform.models.PersistentDisk;
 import com.azure.resourcemanager.appplatform.models.RuntimeVersion;
 import com.azure.resourcemanager.appplatform.models.SpringApp;
 import com.azure.resourcemanager.appplatform.models.SpringAppDeployment;
@@ -467,7 +466,7 @@ public class ApplicationDeployerImpl implements ApplicationDeployer {
 
     @Job(name = "Deploy Azure Spring Cloud application")
     @Override
-    public void deployApp(AppDeployment expectedDeployment) throws IOException {
+    public void deployApp(@Valid AppDeployment expectedDeployment) throws IOException {
 
         logger.info("Validate " + expectedDeployment.getAppName());
         validateDeploymentModel(expectedDeployment);
