@@ -21,7 +21,15 @@
 
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
-deploymentagent/deploy/terraform/terraform.tfvars
-deploymentagent/deploy/terraform/.terraform/
-deploymentagent/deploy/terraform/.terraform*
-deploymentagent/deploy/terraform/terraform.tfstate*
+# deploymentagent/deploy/terraform/terraform.tfvars
+# deploymentagent/deploy/terraform/.terraform/
+# deploymentagent/deploy/terraform/.terraform*
+# deploymentagent/deploy/terraform/terraform.tfstate*
+# deploy/terraform/terraform.tfvars
+# deploy/terraform/.terraform/
+# deploy/terraform/.terraform*
+# deploy/terraform/terraform.tfstate*
+*terraform.tfstate*
+*terraform.tfvars*
+*.terraform/
+*.terraform.*

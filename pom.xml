@@ -29,7 +29,7 @@
   </dependencies>
 
   <modules>
-    <module>deploymentagent</module>
+    <module>springops-agent</module>
     <module>spring-cloud-microservice</module>
   </modules>
 </project>
