@@ -57,6 +57,11 @@ springops:
 ## How it works
 The agent uses Azure Resource Management API to manage the applications. The agent should run with a managed identity and that identity should have permissions over the Azure Spring Cloud service instance.
 
+There is job that checks the GIT repo for commits. If detects a new commit it enqueue a new deployment.
+
+The deployment agent checks if the application exists. If it exists, retrieves the actual configuration and determines if it requires an update. It only applies the required changes.
+It the application doesn't exist in Azure Spring Cloud it creates a new application and deploys it.
+
 ## Deployment
 Build the JAR package and deploy as a regular Azure Spring Cloud application. 
 The following script assumes that you have an Azure subscription with an existing Azure Spring Cloud Service and az-cli installed locally.
